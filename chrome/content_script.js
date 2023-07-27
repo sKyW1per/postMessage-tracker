@@ -15,7 +15,8 @@ var injectedJS = function(pushstate, addeventlistener) {
 		'{"source":"react-devtools',
 		'{"target":"metamask-contentscript"',
 		'{"devtoolsEnabled":true,"vueDetected":true}',
-		'{"source":"vue-devtools'
+		'{"source":"vue-devtools',
+		'Lightstreamer.run'
 	];
 	const blacklist_includes = [
 
