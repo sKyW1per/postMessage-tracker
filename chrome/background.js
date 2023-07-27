@@ -39,6 +39,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	console.log('message from cs', msg);
 	tabId = sender.tab.id;
 	if(msg.listener) {
+		if(msg.stack && msg.stack.includes("chrome-extension://")) return;
 		if(msg.listener == 'function () { [native code] }') return;
 		msg.parent_url = sender.tab.url;
 		if(!tab_listeners[tabId]) tab_listeners[tabId] = [];

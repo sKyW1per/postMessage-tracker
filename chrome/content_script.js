@@ -8,6 +8,19 @@ we also look for event.dispatch.apply in the listener, if it exists, we find a e
 also, we look for jQuery-expandos to identify events being added later on by jQuery's dispatcher
 */ 
 var injectedJS = function(pushstate, addeventlistener) {
+	const blacklist_startsWith = [
+		'{"wappalyzer":',
+		'{"target":"metamask-inpage"',
+		'{"target":"inpage"',
+		'{"source":"react-devtools',
+		'{"target":"metamask-contentscript"',
+		'{"devtoolsEnabled":true,"vueDetected":true}',
+		'{"source":"vue-devtools'
+	];
+	const blacklist_includes = [
+
+	];
+
 	var loaded = false;
 	var m = function(detail) {
 		var storeEvent = new CustomEvent('postMessageTracker', {'detail':detail});
@@ -112,7 +125,16 @@ var injectedJS = function(pushstate, addeventlistener) {
 		return false;
 	}
 
-	window.addEventListener('message', function(e){ console.log('%c' + h(e.source) + '%c→%c' + h() + ' %c' + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data)), "color: red", '', "color: green", ''); })
+	window.addEventListener('message', function(e){
+		let content = (typeof e.data == 'string' ? e.data : JSON.stringify(e.data));
+		for(key in blacklist_startsWith) {
+			if(content.startsWith(blacklist_startsWith[key])) return;
+		};
+		for(key in blacklist_includes) {
+			if(content.includes(blacklist_includes[key])) return;
+		};
+		console.log('%c msg %c' + h(e.source) + '%c→%c' + h() + ' %c' + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data)), "color: #07edd2", "color: red", '', "color: green", '');
+	})
 
 	Window.prototype.addEventListener = function(type, listener, useCapture) {
 		if(type=='message') {
