@@ -138,6 +138,13 @@ var injectedJS = function(pushstate, msgeventlistener, msgporteventlistener) {
         }
     };
     var onmsg = function(e){
+		let content_str = (typeof e.data == 'string' ? e.data : JSON.stringify(e.data));
+		for(item of blacklist_startsWith) {
+			if(content_str.startsWith(item)) return;
+		};
+		for(item of blacklist_includes) {
+			if(content_str.includes(item)) return;
+		};
         var p = (e.ports.length?'%cport'+e.ports.length+'%c ':'');
         var msg = '%c' + h(e.source) + '%c→%c' + h() + '%c ' + p + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data));
         if (p.length) {
