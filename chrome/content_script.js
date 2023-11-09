@@ -7,7 +7,7 @@ beforeunload to track page changes (since we see no diff btw fragmentchange/push
 we also look for event.dispatch.apply in the listener, if it exists, we find a earlier stack-row and use that one
 also, we look for jQuery-expandos to identify events being added later on by jQuery's dispatcher
 */ 
-var injectedJS = function(pushstate, addeventlistener) {
+var injectedJS = function(pushstate, msgeventlistener, msgporteventlistener) {
 	const blacklist_startsWith = [
 		'{"wappalyzer":',
 		'{"target":"metamask-inpage"',
@@ -21,8 +21,8 @@ var injectedJS = function(pushstate, addeventlistener) {
 	const blacklist_includes = [
 
 	];
-
 	var loaded = false;
+    var originalFunctionToString = Function.prototype.toString;
 	var m = function(detail) {
 		var storeEvent = new CustomEvent('postMessageTracker', {'detail':detail});
 		document.dispatchEvent(storeEvent);
@@ -117,25 +117,43 @@ var injectedJS = function(pushstate, addeventlistener) {
 		original_setter(listener);
 	});
 	var c = function(listener) {
-		var listener_str = listener.toString()
+		var listener_str = originalFunctionToString.apply(listener)
 		if(listener_str.match(/\.deep.*apply.*captureException/s)) return 'raven';
 		else if(listener_str.match(/arguments.*(start|typeof).*err.*finally.*end/s) && listener["nr@original"] && typeof listener["nr@original"] == "function") return 'newrelic';
 		else if(listener_str.match(/rollbarContext.*rollbarWrappedError/s) && listener._isWrap && 
 					(typeof listener._wrapped == "function" || typeof listener._rollbar_wrapped == "function")) return 'rollbar';
 		else if(listener_str.match(/autoNotify.*(unhandledException|notifyException)/s) && typeof listener.bugsnag == "function") return 'bugsnag';
+		else if(listener_str.match(/call.*arguments.*typeof.*apply/s) && typeof listener.__sentry_original__ == "function") return 'sentry';
+		else if(listener_str.match(/function.*function.*\.apply.*arguments/s) && typeof listener.__trace__ == "function") return 'bugsnag2';
 		return false;
 	}
 
-	window.addEventListener('message', function(e){
-		let content = (typeof e.data == 'string' ? e.data : JSON.stringify(e.data));
-		for(key in blacklist_startsWith) {
-			if(content.startsWith(blacklist_startsWith[key])) return;
-		};
-		for(key in blacklist_includes) {
-			if(content.includes(blacklist_includes[key])) return;
-		};
-		console.log('%c msg %c' + h(e.source) + '%c→%c' + h() + ' %c' + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data)), "color: #07edd2", "color: red", '', "color: green", '');
-	})
+    var onmsgport = function(e){
+        var p = (e.ports.length?'%cport'+e.ports.length+'%c ':'');
+        var msg = '%cport%c→%c' + h(e.source) + '%c ' + p + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data));
+        if (p.length) {
+            console.log(msg, "color: blue", '', "color: red", '', "color: blue", '');
+        } else {
+            console.log(msg, "color: blue", '', "color: red", '');
+        }
+    };
+    var onmsg = function(e){
+        var p = (e.ports.length?'%cport'+e.ports.length+'%c ':'');
+        var msg = '%c' + h(e.source) + '%c→%c' + h() + '%c ' + p + (typeof e.data == 'string'?e.data:'j '+JSON.stringify(e.data));
+        if (p.length) {
+            console.log(msg, "color: red", '', "color: green", '', "color: blue", '');
+        } else {
+            console.log(msg, "color: red", '', "color: green", '');
+        }
+    };
+	window.addEventListener('message', onmsg)
+    MessagePort.prototype.addEventListener = function(type, listener, useCapture) {
+        if (!this.__postmessagetrackername__) {
+            this.__postmessagetrackername__ = true;
+            this.addEventListener('message', onmsgport);
+        }
+        return msgporteventlistener.apply(this, arguments);
+    }
 
 	Window.prototype.addEventListener = function(type, listener, useCapture) {
 		if(type=='message') {
@@ -166,6 +184,10 @@ var injectedJS = function(pushstate, addeventlistener) {
 					m({log:'We got a newrelic wrapper'});
 					offset++;
 					listener = unwrap(listener["nr@original"]);
+				} else if(found == 'sentry') {
+					m({log:'We got a sentry wrapper'});
+					offset++;
+					listener = unwrap(listener["__sentry_original__"]);
 				} else if(found == 'rollbar') {
 					m({log:'We got a rollbar wrapper'});
 					offset+=2;
@@ -177,6 +199,15 @@ var injectedJS = function(pushstate, addeventlistener) {
 						m({log:'We got a bugsnag wrapper'});
 						listener.__postmessagetrackername__ = clr.toString();
 					} else if(clr) { offset++ }
+				} else if(found == 'bugsnag2') {
+					offset++;
+					var clr = null;
+					try { clr = arguments.callee.caller.caller.arguments[1]; } catch(e) { }
+					if(clr && !c(clr)) { //dont care if its other wrappers
+                        listener = unwrap(clr);
+						m({log:'We got a bugsnag2 wrapper'});
+						listener.__postmessagetrackername__ = clr.toString();
+					} else if(clr) { offset++; }
 				}
 				if(listener.name.indexOf('bound ') === 0) {
 					listener.__postmessagetrackername__ = listener.name;
@@ -189,12 +220,13 @@ var injectedJS = function(pushstate, addeventlistener) {
 			    l(listener, pattern_before, offset);
             }
 		}
-		return addeventlistener.apply(this, arguments);
+		return msgeventlistener.apply(this, arguments);
 	};
 	window.addEventListener('load', j);
 	window.addEventListener('postMessageTrackerUpdate', j);
 };
-injectedJS = '(' + injectedJS.toString() + ')(History.prototype.pushState, Window.prototype.addEventListener)';
+injectedJS = '(' + injectedJS.toString() + ')'+
+             '(History.prototype.pushState, Window.prototype.addEventListener, MessagePort.prototype.addEventListener)';
 
 document.addEventListener('postMessageTracker', function(event) {
 	chrome.runtime.sendMessage(event.detail);
@@ -206,7 +238,13 @@ window.addEventListener('beforeunload', function(event) {
 	document.dispatchEvent(storeEvent);
 });
 
-var script = document.createElement("script");
-script.setAttribute('type', 'text/javascript')
-script.appendChild(document.createTextNode(injectedJS));
-document.documentElement.appendChild(script);
+(function() {
+    switch(document.contentType) {
+        case 'application/xml':
+            return;
+    }
+    var script = document.createElement("script");
+    script.setAttribute('type', 'text/javascript')
+    script.appendChild(document.createTextNode(injectedJS));
+    document.documentElement.appendChild(script);
+})();
