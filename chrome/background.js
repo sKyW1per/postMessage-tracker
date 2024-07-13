@@ -1,3 +1,5 @@
+const listener_includes_blacklist = ["function () { [native code] }", "if (!data.wappalyzer || !data.wappalyzer.technologies)"]
+
 var tab_listeners = {};
 var tab_push = {}, tab_lasturl = {};
 var selectedId = -1;
@@ -40,7 +42,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 	tabId = sender.tab.id;
 	if(msg.listener) {
 		if(msg.stack && msg.stack.includes("chrome-extension://")) return;
-		if(msg.listener == 'function () { [native code] }') return;
+		if(listener_includes_blacklist.some(item => msg.listener.includes(item))) return;
 		msg.parent_url = sender.tab.url;
 		if(!tab_listeners[tabId]) tab_listeners[tabId] = [];
 		tab_listeners[tabId][tab_listeners[tabId].length] = msg;
