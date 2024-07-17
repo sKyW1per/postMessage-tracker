@@ -17,7 +17,7 @@ var injectedJS = function(pushstate, msgeventlistener, msgporteventlistener) {
 		'{"devtoolsEnabled":true,"vueDetected":true}',
 		'{"source":"vue-devtools',
 		'Lightstreamer.run',
-		'{"ext":"domlogger"'
+		'{"ext":"domlogger'
 	];
 	const blacklist_includes = [
 
