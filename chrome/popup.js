@@ -53,7 +53,7 @@ function listListeners(listeners) {
 		pel = document.createElement('pre');
 
 		// Highlight and make the matched strings bold
-		var listenerText = htmlEncode(listener.listener).replace(/(eval\()|(\.indexOf\()|(opener\()|(\.startsWith\()|(\.endsWith\()|(location\.href)|(\.url)|(\.source)|(\"\*\")|(\'\*\')|(\.search\()|(document\.write\()|(\.insertAdjacentHTML\()|(\.innerHTML\()|(\.outerHTML\()|(\.includes\()|(\.replace\()|(\.match\()|(\.origin)|(window\.origin)/g,
+		var listenerText = htmlEncode(listener.listener).replace(/(eval)|(\.indexOf)|(\.opener)|(\.startsWith)|(\.endsWith)|(\.href)|(\.url)|(\.source)|(\"\*\")|(\'\*\')|(\.search)|(document\.write)|(\.insertAdjacentHTML)|(\.innerHTML)|(\.outerHTML)|(\.includes)|(\.replace)|(\.match\()|(\.origin)|(window\.origin)/g,
             function(match) {
                 return highlightString(match);
             });
