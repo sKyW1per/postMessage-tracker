@@ -2,7 +2,6 @@ var port = chrome.extension.connect({
 	name: "Sample Communication"
 });
 
-
 function loaded() {
 	port.postMessage("get-stuff");
 	port.onMessage.addListener(function(msg) {
@@ -12,6 +11,15 @@ function loaded() {
 			listListeners(msg.listeners[selectedId]);
 		});
 	});
+}
+
+function htmlEncode(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function highlightString(text) {
+    // Highlight and make the matched string bold
+    return '<b style="color: red;">' + text + '</b>';
 }
 
 window.onload = loaded
@@ -39,14 +47,18 @@ function listListeners(listeners) {
 		sel = document.createElement('span');
 		if(listener.fullstack) sel.setAttribute('title', listener.fullstack.join("\n\n"));
 		seltxt = document.createTextNode(listener.stack);
-		
 		sel.appendChild(seltxt);
+
 		el.appendChild(sel);
-
 		pel = document.createElement('pre');
-		pel.innerText = listener.listener;
-		el.appendChild(pel);
 
+		// Highlight and make the matched strings bold
+		var listenerText = htmlEncode(listener.listener).replace(/(eval\()|(\.indexOf\()|(opener\()|(\.startsWith\()|(\.endsWith\()|(location\.href)|(\.url)|(\.source)|(\"\*\")|(\'\*\')|(\.search\()|(document\.write\()|(\.insertAdjacentHTML\()|(\.innerHTML\()|(\.outerHTML\()|(\.includes\()|(\.replace\()|(\.match\()|(\.origin)|(window\.origin)/g,
+            function(match) {
+                return highlightString(match);
+            });
+		pel.innerHTML = listenerText;		
+		el.appendChild(pel);
 		x.appendChild(el);
 	}
 	document.getElementById('content').appendChild(x);
