@@ -50,7 +50,4 @@ function listListeners(listeners) {
 		x.appendChild(el);
 	}
 	document.getElementById('content').appendChild(x);
-	/*setTimeout(function() {
-		document.body.style.display = 'block';
-	}, 150);*/
 }
